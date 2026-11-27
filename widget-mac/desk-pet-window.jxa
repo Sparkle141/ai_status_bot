@@ -1,0 +1,191 @@
+ObjC.import('Cocoa');
+ObjC.import('WebKit');
+ObjC.import('Foundation');
+
+function run(argv) {
+  var urlStr = argv.length > 0 ? String(argv[0]) : 'http://127.0.0.1:47821';
+  var serverPid = argv.length > 1 ? String(argv[1]) : '';
+
+  var app = $.NSApplication.sharedApplication;
+  app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
+
+  var COMPACT_W = 345;
+  var COMPACT_H = 92;
+  var EXPANDED_W = 450;
+  var EXPANDED_H = 610;
+
+  var screenFrame = $.NSScreen.mainScreen.visibleFrame;
+  var initX = screenFrame.origin.x + screenFrame.size.width - COMPACT_W - 18;
+  var initY = screenFrame.origin.y + 24;
+
+  var petOriginX = initX;
+  var petOriginY = initY;
+  var isExpanded = false;
+
+  function clampFrame(x, y, w, h) {
+    var vf = $.NSScreen.mainScreen.visibleFrame;
+    var minX = vf.origin.x + 8;
+    var maxX = Math.max(minX, vf.origin.x + vf.size.width - w - 8);
+    var minY = vf.origin.y + 8;
+    var maxY = Math.max(minY, vf.origin.y + vf.size.height - h - 8);
+    return {
+      x: Math.min(Math.max(x, minX), maxX),
+      y: Math.min(Math.max(y, minY), maxY)
+    };
+  }
+
+  var winRect = $.NSMakeRect(initX, initY, COMPACT_W, COMPACT_H);
+  var win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+    winRect,
+    $.NSWindowStyleMaskBorderless,
+    $.NSBackingStoreBuffered,
+    false
+  );
+  win.setOpaque(false);
+  win.setBackgroundColor($.NSColor.clearColor);
+  win.setHasShadow(false);
+  win.setLevel($.NSFloatingWindowLevel);
+  win.setCollectionBehavior(
+    $.NSWindowCollectionBehaviorCanJoinAllSpaces |
+    $.NSWindowCollectionBehaviorFullScreenAuxiliary
+  );
+
+  var webViewRef = null;
+
+  function terminateAll() {
+    if (serverPid && /^\d+$/.test(serverPid)) {
+      try {
+        var task = $.NSTask.launchedTaskWithLaunchPathArguments('/bin/kill', ['-TERM', serverPid]);
+        void task;
+      } catch (e) {}
+    }
+    app.terminate(null);
+  }
+
+  ObjC.registerSubclass({
+    name: 'PetMessageHandler',
+    superclass: 'NSObject',
+    protocols: ['WKScriptMessageHandler'],
+    methods: {
+      'userContentController:didReceiveScriptMessage:': {
+        types: ['void', ['id', 'id']],
+        implementation: function (ucc, msg) {
+          var body = ObjC.deepUnwrap(msg.body);
+          if (!body || !body.cmd) return;
+          var frame = win.frame;
+
+          if (body.cmd === 'dragDelta') {
+            var dx = Number(body.dx || 0);
+            var dy = Number(body.dy || 0);
+            var clamped = clampFrame(frame.origin.x + dx, frame.origin.y - dy, frame.size.width, frame.size.height);
+            win.setFrameOrigin($.NSMakePoint(clamped.x, clamped.y));
+            if (!isExpanded) {
+              petOriginX = clamped.x;
+              petOriginY = clamped.y;
+            }
+          } else if (body.cmd === 'expand') {
+            if (!isExpanded) {
+              petOriginX = frame.origin.x;
+              petOriginY = frame.origin.y;
+            }
+            isExpanded = true;
+            var ec = clampFrame(petOriginX, petOriginY - (EXPANDED_H - COMPACT_H), EXPANDED_W, EXPANDED_H);
+            win.setFrameDisplayAnimate($.NSMakeRect(ec.x, ec.y, EXPANDED_W, EXPANDED_H), true, false);
+          } else if (body.cmd === 'collapse') {
+            isExpanded = false;
+            var cc = clampFrame(petOriginX, petOriginY, COMPACT_W, COMPACT_H);
+            win.setFrameDisplayAnimate($.NSMakeRect(cc.x, cc.y, COMPACT_W, COMPACT_H), true, false);
+          } else if (body.cmd === 'topmost') {
+            var isTop = Boolean(body.value);
+            win.setLevel(isTop ? $.NSFloatingWindowLevel : $.NSNormalWindowLevel);
+          } else if (body.cmd === 'resetPos') {
+            var vf = $.NSScreen.mainScreen.visibleFrame;
+            petOriginX = vf.origin.x + vf.size.width - COMPACT_W - 18;
+            petOriginY = vf.origin.y + 24;
+            var w = isExpanded ? EXPANDED_W : COMPACT_W;
+            var h = isExpanded ? EXPANDED_H : COMPACT_H;
+            var rc = clampFrame(petOriginX, petOriginY, w, h);
+            win.setFrameOrigin($.NSMakePoint(rc.x, rc.y));
+          } else if (body.cmd === 'quit') {
+            terminateAll();
+          }
+        }
+      }
+    }
+  });
+
+  var config = $.WKWebViewConfiguration.alloc.init;
+  var ucc = $.WKUserContentController.alloc.init;
+  var handler = $.PetMessageHandler.alloc.init;
+  ucc.addScriptMessageHandlerName(handler, $('pet'));
+  config.setUserContentController(ucc);
+
+  var webView = $.WKWebView.alloc.initWithFrameConfiguration($.NSMakeRect(0, 0, COMPACT_W, COMPACT_H), config);
+  webView.setValueForKey($.NO, $('drawsBackground'));
+  webView.setAutoresizingMask($.NSViewWidthSizable | $.NSViewHeightSizable);
+  webViewRef = webView;
+
+  win.setContentView(webView);
+  var req = $.NSURLRequest.requestWithURL($.NSURL.URLWithString($(urlStr)));
+  webView.loadRequest(req);
+  win.makeKeyAndOrderFront(null);
+
+  // Menu bar status item
+  ObjC.registerSubclass({
+    name: 'PetMenuTarget',
+    superclass: 'NSObject',
+    methods: {
+      'onToggle:': {
+        types: ['void', ['id']],
+        implementation: function () {
+          if (webViewRef) webViewRef.evaluateJavaScriptCompletionHandler($('window.__petCommand && window.__petCommand("toggle")'), null);
+        }
+      },
+      'onRefresh:': {
+        types: ['void', ['id']],
+        implementation: function () {
+          if (webViewRef) webViewRef.evaluateJavaScriptCompletionHandler($('window.__petCommand && window.__petCommand("refresh")'), null);
+        }
+      },
+      'onResetPos:': {
+        types: ['void', ['id']],
+        implementation: function () {
+          if (webViewRef) webViewRef.evaluateJavaScriptCompletionHandler($('window.__petCommand && window.__petCommand("resetPos")'), null);
+        }
+      },
+      'onQuit:': {
+        types: ['void', ['id']],
+        implementation: function () {
+          terminateAll();
+        }
+      }
+    }
+  });
+
+  var menuTarget = $.PetMenuTarget.alloc.init;
+  var statusItem = $.NSStatusBar.systemStatusBar.statusItemWithLength($.NSVariableStatusItemLength);
+  statusItem.button.setTitle($('🤖 AI'));
+
+  var menu = $.NSMenu.alloc.init;
+  var itemToggle = $.NSMenuItem.alloc.initWithTitleActionKeyEquivalent($('대시보드 펼치기 / 접기'), 'onToggle:', $(''));
+  itemToggle.setTarget(menuTarget);
+  menu.addItem(itemToggle);
+
+  var itemRefresh = $.NSMenuItem.alloc.initWithTitleActionKeyEquivalent($('지금 새로고침'), 'onRefresh:', $(''));
+  itemRefresh.setTarget(menuTarget);
+  menu.addItem(itemRefresh);
+
+  var itemReset = $.NSMenuItem.alloc.initWithTitleActionKeyEquivalent($('기본 위치로 초기화'), 'onResetPos:', $(''));
+  itemReset.setTarget(menuTarget);
+  menu.addItem(itemReset);
+
+  menu.addItem($.NSMenuItem.separatorItem);
+
+  var itemQuit = $.NSMenuItem.alloc.initWithTitleActionKeyEquivalent($('종료'), 'onQuit:', $(''));
+  itemQuit.setTarget(menuTarget);
+  menu.addItem(itemQuit);
+
+  statusItem.setMenu(menu);
+
+  app.run;
+}

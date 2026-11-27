@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Desk Pet</title>
+<style>
+  :root {
+    --accent: #94A3B8;
+    --halo: rgba(148, 163, 184, 0.22);
+    --body: #1E293B;
+    --border: #64748B;
+  }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: #F8FAFC;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    overflow: hidden;
+  }
+  .root {
+    padding: 6px;
+    display: inline-block;
+  }
+
+  /* COMPACT PET MODE */
+  .compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .pet-wrap {
+    position: relative;
+    width: 66px;
+    height: 66px;
+    flex-shrink: 0;
+  }
+  .pet-halo {
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: var(--halo);
+    transition: background 0.25s ease;
+  }
+  .pet-svg {
+    position: relative;
+    width: 66px;
+    height: 66px;
+    z-index: 1;
+    transform-origin: 33px 38px;
+  }
+  .pet-badge {
+    position: absolute;
+    top: 3px;
+    right: 1px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--accent);
+    border: 1.5px solid #0F172A;
+    color: #FFFFFF;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .compact-pill {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1.2px solid var(--border);
+    border-radius: 14px;
+    padding: 7px 11px;
+    max-width: 265px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .pill-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .pill-arrow {
+    color: #94A3B8;
+    font-size: 10px;
+    margin-left: 2px;
+  }
+  .pill-quota {
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: #94A3B8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* State animations */
+  @keyframes anim-idle {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(2px); }
+  }
+  @keyframes anim-running {
+    0%, 100% { transform: translateY(0px) rotate(-1.5deg); }
+    50% { transform: translateY(-4px) rotate(1.5deg); }
+  }
+  @keyframes anim-approval {
+    0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+    25% { transform: translate(-2px, -4px) rotate(-3.5deg); }
+    75% { transform: translate(2px, -3px) rotate(3.5deg); }
+  }
+  @keyframes anim-error {
+    0%, 100% { transform: translateX(0px) rotate(0deg); }
+    25% { transform: translateX(-3px) rotate(-4deg); }
+    75% { transform: translateX(3px) rotate(4deg); }
+  }
+  @keyframes anim-paused {
+    0%, 100% { transform: translateY(0px) rotate(-4deg); }
+    50% { transform: translateY(1.5px) rotate(-4deg); }
+  }
+  @keyframes anim-done {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes halo-pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.96); }
+    50% { opacity: 1; transform: scale(1.04); }
+  }
+  .state-idle .pet-svg { animation: anim-idle 2.6s ease-in-out infinite; }
+  .state-running .pet-svg { animation: anim-running 0.9s ease-in-out infinite; }
+  .state-approval .pet-svg { animation: anim-approval 0.55s ease-in-out infinite; }
+  .state-approval .pet-halo, .state-error .pet-halo { animation: halo-pulse 0.8s ease-in-out infinite; }
+  .state-error .pet-svg { animation: anim-error 0.35s linear infinite; }
+  .state-paused .pet-svg { animation: anim-paused 2.4s ease-in-out infinite; }
+  .state-done .pet-svg { animation: anim-done 1.1s ease-in-out infinite; }
+
+  /* EXPANDED DASHBOARD MODE */
+  .expanded {
+    display: none;
+    width: 430px;
+    background: rgba(11, 18, 32, 0.96);
+    border: 1.2px solid #334155;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    cursor: grab;
+  }
+  .header:active { cursor: grabbing; }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .header-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .header-title {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .header-badge {
+    background: #1E293B;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px 7px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #E2E8F0;
+  }
+  .header-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .btn {
+    background: #1E293B;
+    color: #CBD5E1;
+    border: 1px solid #334155;
+    border-radius: 7px;
+    padding: 3px 7px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { background: #334155; }
+  .btn.active {
+    background: #2563EB;
+    border-color: #60A5FA;
+    color: #FFFFFF;
+  }
+  .speech-box {
+    background: #131F33;
+    border: 1px solid #243247;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 11.5px;
+    color: #E2E8F0;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .section-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94A3B8;
+    margin: 0 0 5px 2px;
+  }
+  .providers-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .prov-card {
+    width: 128px;
+    background: #111C2E;
+    border: 1px solid #243247;
+    border-radius: 10px;
+    padding: 7px 9px;
+  }
+  .prov-r1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+  .prov-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .prov-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+  .prov-proc {
+    font-size: 9.5px;
+    font-weight: 600;
+  }
+  .prov-r2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 10px;
+    color: #94A3B8;
+  }
+  .prov-qval {
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .bar-bg {
+    height: 5px;
+    border-radius: 2.5px;
+    background: #1E293B;
+    margin: 3px 0;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2.5px;
+  }
+  .prov-sub {
+    font-size: 9.5px;
+    color: #64748B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .tasks-scroll {
+    max-height: 270px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .tasks-scroll::-webkit-scrollbar { width: 5px; }
+  .tasks-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  .task-card {
+    background: #111C2E;
+    border: 1px solid #243247;
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+  .task-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .task-tags {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .tag {
+    border-radius: 6px;
+    padding: 1px 5px;
+    font-size: 9.5px;
+    font-weight: 700;
+  }
+  .tag-prov {
+    background: #1E293B;
+    font-weight: 600;
+  }
+  .task-rel {
+    font-size: 9.5px;
+    color: #64748B;
+    white-space: nowrap;
+  }
+  .task-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #F8FAFC;
+    margin: 4px 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .task-meta {
+    font-size: 10px;
+    color: #94A3B8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .task-summary {
+    font-size: 10.5px;
+    color: #CBD5E1;
+    margin-top: 3px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  .footer-info {
+    font-size: 10.5px;
+    color: #64748B;
+  }
+  .footer-btns {
+    display: flex;
+    gap: 4px;
+  }
+  .ctx-menu {
+    position: fixed;
+    display: none;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 5px;
+    min-width: 170px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  }
+  .ctx-item {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    color: #E2E8F0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .ctx-item:hover { background: #1E293B; }
+  .ctx-sep { height: 1px; background: #243247; margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="root" id="root">
+  <!-- COMPACT PET VIEW -->
+  <div class="compact state-idle" id="compactView" title="클릭: 대시보드 열기 · 드래그: 이동 · 우클릭: 메뉴">
+    <div class="pet-wrap">
+      <div class="pet-halo" id="petHalo"></div>
+      <svg class="pet-svg" viewBox="0 0 66 66">
+        <line x1="33" y1="17" x2="33" y2="9" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+        <circle id="antennaOrb" cx="33" cy="8.5" r="4.5" fill="#94A3B8" stroke="#FFFFFF" stroke-width="1.2"/>
+        <rect x="7" y="29" width="6" height="13" rx="3" fill="#64748B"/>
+        <rect x="53" y="29" width="6" height="13" rx="3" fill="#64748B"/>
+        <rect id="petBody" x="11" y="17" width="44" height="39" rx="14" fill="#1E293B" stroke="#64748B" stroke-width="2"/>
+        <rect x="16" y="23" width="34" height="22" rx="8" fill="#0B1120"/>
+        <g id="eyesNormal" style="display:none">
+          <ellipse id="eyeL" cx="25" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
+          <ellipse id="eyeR" cx="41" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
+        </g>
+        <g id="eyesHappy" style="display:none">
+          <path d="M 21,34 Q 25,28 29,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M 37,34 Q 41,28 45,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
+        </g>
+        <g id="eyesSleep">
+          <line x1="21" y1="33" x2="28" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="38" y1="33" x2="45" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+        </g>
+        <g id="eyesError" style="display:none">
+          <path d="M 22,29 L 28,35 M 28,29 L 22,35 M 38,29 L 44,35 M 44,29 L 38,35" stroke="#F87171" stroke-width="2.2" stroke-linecap="round"/>
+        </g>
+        <ellipse cx="20.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
+        <ellipse cx="45.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
+        <path id="mouthPath" d="M 30,41 L 36,41" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="20" y="55" width="8" height="4" rx="2" fill="#475569"/>
+        <rect x="38" y="55" width="8" height="4" rx="2" fill="#475569"/>
+      </svg>
+      <div class="pet-badge" id="petBadge">z</div>
+    </div>
+    <div class="compact-pill" id="compactPill">
+      <div class="pill-top">
+        <span class="pill-dot"></span>
+        <span id="compactStateText">확인 중...</span>
+        <span class="pill-arrow">▾</span>
+      </div>
+      <div class="pill-quota" id="compactQuotaText">로컬 데이터 수집 중</div>
+    </div>
+  </div>
+
+  <!-- EXPANDED DASHBOARD VIEW -->
+  <div class="expanded" id="expandedView">
+    <div class="header" id="expandedHeader">
+      <div class="header-left">
+        <span class="header-dot"></span>
+        <span class="header-title">AI Desk Pet</span>
+        <span class="header-badge" id="headerStateText">휴식 중</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn" id="btnRefresh" title="지금 새로고침">↻</button>
+        <button class="btn" id="btnTopmost" title="항상 위 전환">📌</button>
+        <button class="btn" id="btnMute" title="알림 끄기/켜기">🔔</button>
+        <button class="btn" id="btnCollapse" title="펫 미니 모드로 접기">접기 ▴</button>
+      </div>
+    </div>
+
+    <div class="speech-box" id="petSpeechText">데이터를 불러오는 중입니다...</div>
+    <div class="section-label">프로바이더 · 잔여 사용량</div>
+    <div class="providers-grid" id="providersPanel"></div>
+
+    <div class="tabs" id="filterTabs">
+      <button class="btn active" data-filter="all">전체 (0)</button>
+      <button class="btn" data-filter="active">진행·보류 (0)</button>
+      <button class="btn" data-filter="alert">승인·오류 (0)</button>
+      <button class="btn" data-filter="done">완료 (0)</button>
+    </div>
+
+    <div class="tasks-scroll" id="tasksPanel"></div>
+
+    <div class="footer">
+      <span class="footer-info" id="footerInfoText">업데이트 대기 중 · 무토큰</span>
+      <div class="footer-btns">
+        <button class="btn" id="btnExternalDir">외부 연동 폴더</button>
+        <button class="btn" id="btnQuit">종료</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxToggle">대시보드 펼치기 / 접기</div>
+  <div class="ctx-item" id="ctxRefresh">지금 새로고침</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxTopmost">항상 위(Topmost) 전환</div>
+  <div class="ctx-item" id="ctxMute">알림 토스트 끄기/켜기</div>
+  <div class="ctx-item" id="ctxReset">기본 위치로 초기화</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxQuit">종료</div>
+</div>
+
+<script>
+const THEMES = {
+  approval: { accent: '#F59E0B', halo: 'rgba(245,158,11,0.34)', body: '#3B280D', border: '#FBBF24', badge: '!', label: '승인 대기' },
+  error:    { accent: '#EF4444', halo: 'rgba(239,68,68,0.34)',  body: '#3F1419', border: '#F87171', badge: '×', label: '오류 발생' },
+  running:  { accent: '#10B981', halo: 'rgba(16,185,129,0.28)', body: '#102A25', border: '#34D399', badge: '●', label: '작업 중' },
+  paused:   { accent: '#60A5FA', halo: 'rgba(96,165,250,0.26)', body: '#17253B', border: '#93C5FD', badge: '⏸', label: '보류/대기' },
+  done:     { accent: '#22C55E', halo: 'rgba(34,197,94,0.28)',  body: '#132A1C', border: '#4ADE80', badge: '✓', label: '완료' },
+  idle:     { accent: '#94A3B8', halo: 'rgba(148,163,184,0.18)', body: '#1E293B', border: '#64748B', badge: 'z', label: '휴식 중' }
+};
+
+const isNativeMac = Boolean(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pet);
+let latestData = null;
+let activeFilter = 'all';
+let isExpanded = !isNativeMac; // Browser preview opens expanded; native Mac pet starts compact
+let prefs = { topmost: true, muted: false };
+
+function postNative(payload) {
+  if (isNativeMac) {
+    window.webkit.messageHandlers.pet.postMessage(payload);
+  }
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function applyPetTheme(state) {
+  const t = THEMES[state] || THEMES.idle;
+  const r = document.documentElement.style;
+  r.setProperty('--accent', t.accent);
+  r.setProperty('--halo', t.halo);
+  r.setProperty('--body', t.body);
+  r.setProperty('--border', t.border);
+
+  document.getElementById('antennaOrb').setAttribute('fill', t.accent);
+  document.getElementById('petBody').setAttribute('fill', t.body);
+  document.getElementById('petBody').setAttribute('stroke', t.border);
+  document.getElementById('petBadge').textContent = t.badge;
+  document.getElementById('headerStateText').textContent = t.label;
+
+  const cv = document.getElementById('compactView');
+  cv.className = 'compact state-' + (THEMES[state] ? state : 'idle');
+
+  document.getElementById('eyesNormal').style.display = 'none';
+  document.getElementById('eyesHappy').style.display = 'none';
+  document.getElementById('eyesSleep').style.display = 'none';
+  document.getElementById('eyesError').style.display = 'none';
+  const mouth = document.getElementById('mouthPath');
+
+  if (state === 'error') {
+    document.getElementById('eyesError').style.display = '';
+    mouth.setAttribute('d', 'M 28,42 Q 33,38 38,42');
+  } else if (state === 'done') {
+    document.getElementById('eyesHappy').style.display = '';
+    mouth.setAttribute('d', 'M 28,39 Q 33,44 38,39');
+  } else if (state === 'idle') {
+    document.getElementById('eyesSleep').style.display = '';
+    mouth.setAttribute('d', 'M 30,41 L 36,41');
+  } else if (state === 'approval') {
+    document.getElementById('eyesNormal').style.display = '';
+    document.getElementById('eyeL').setAttribute('fill', t.border);
+    document.getElementById('eyeR').setAttribute('fill', t.border);
+    mouth.setAttribute('d', 'M 30,40 A 3,3 0 1 1 36,40 A 3,3 0 1 1 30,40');
+  } else {
+    document.getElementById('eyesNormal').style.display = '';
+    document.getElementById('eyeL').setAttribute('fill', t.border);
+    document.getElementById('eyeR').setAttribute('fill', t.border);
+    mouth.setAttribute('d', 'M 29,40 Q 33,43 37,40');
+  }
+}
+
+function setExpanded(expand) {
+  isExpanded = expand;
+  document.getElementById('compactView').style.display = expand ? 'none' : 'flex';
+  document.getElementById('expandedView').style.display = expand ? 'block' : 'none';
+  postNative({ cmd: expand ? 'expand' : 'collapse' });
+  if (expand && latestData) renderDashboard();
+}
+
+function updateToggleButtons() {
+  const topBtn = document.getElementById('btnTopmost');
+  topBtn.textContent = prefs.topmost ? '📌' : '📍';
+  topBtn.style.color = prefs.topmost ? '#38BDF8' : '#64748B';
+  const muteBtn = document.getElementById('btnMute');
+  muteBtn.textContent = prefs.muted ? '🔕' : '🔔';
+  muteBtn.style.color = prefs.muted ? '#64748B' : '#FBBF24';
+}
+
+function renderDashboard() {
+  if (!latestData) return;
+  const c = latestData.counts || {};
+  document.querySelector('[data-filter="all"]').textContent = `전체 (${c.total || 0})`;
+  document.querySelector('[data-filter="active"]').textContent = `진행·보류 (${(c.running || 0) + (c.paused || 0)})`;
+  document.querySelector('[data-filter="alert"]').textContent = `승인·오류 (${(c.approval || 0) + (c.error || 0)})`;
+  document.querySelector('[data-filter="done"]').textContent = `완료 (${c.done || 0})`;
+
+  document.getElementById('petSpeechText').textContent = latestData.petSpeech || '';
+  document.getElementById('footerInfoText').textContent = `갱신: ${(latestData.generatedAtKst || '').slice(11, 19)} KST · 4초 주기 · 무토큰`;
+
+  const provEl = document.getElementById('providersPanel');
+  provEl.innerHTML = (latestData.providers || []).map(p => {
+    const q = p.quota || {};
+    const dotColor = p.processState === 'running' ? '#10B981' : (p.processState === 'paused' ? '#60A5FA' : '#64748B');
+    const procTxt = p.processState === 'running' ? 'ON' : (p.processState === 'paused' ? '대기' : 'OFF');
+    const procColor = p.processState === 'running' ? '#34D399' : '#64748B';
+    const hasPct = q.available && typeof q.remainingPct === 'number';
+    const rem = hasPct ? Math.max(0, Math.min(100, q.remainingPct)) : 37;
+    const valColor = hasPct ? (rem >= 50 ? '#34D399' : (rem >= 20 ? '#FBBF24' : '#F87171')) : '#93C5FD';
+    const barColor = hasPct ? (rem >= 50 ? '#10B981' : (rem >= 20 ? '#F59E0B' : '#EF4444')) : '#3B82F6';
+    const sub = q.secondaryText || q.resetText || p.processDetail || '';
+    return `
+      <div class="prov-card" title="${esc(p.processDetail + '\n' + (q.resetText || '') + '\n' + (p.note || ''))}">
+        <div class="prov-r1">
+          <div class="prov-name-wrap"><span class="prov-dot" style="background:${dotColor}"></span><span>${esc(p.name)}</span></div>
+          <span class="prov-proc" style="color:${procColor}">${procTxt}</span>
+        </div>
+        <div class="prov-r2">
+          <span>${esc(q.primaryLabel || '잔여량')}</span>
+          <span class="prov-qval" style="color:${valColor}">${esc(q.primaryValueText || '-')}</span>
+        </div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${hasPct ? Math.max(3, rem) : 37}%;background:${barColor}"></div></div>
+        <div class="prov-sub">${esc(sub)}</div>
+      </div>`;
+  }).join('');
+
+  const filtered = (latestData.tasks || []).filter(t => {
+    if (activeFilter === 'active') return t.status === 'running' || t.status === 'paused';
+    if (activeFilter === 'alert') return t.status === 'approval' || t.status === 'error';
+    if (activeFilter === 'done') return t.status === 'done';
+    return true;
+  }).slice(0, 25);
+
+  const tasksEl = document.getElementById('tasksPanel');
+  if (filtered.length === 0) {
+    tasksEl.innerHTML = '<div style="text-align:center;color:#64748B;font-size:11.5px;padding:22px 0;">표시할 작업이 없습니다.</div>';
+    return;
+  }
+
+  tasksEl.innerHTML = filtered.map(t => {
+    const st = THEMES[t.status] || THEMES.idle;
+    const borderCol = (t.status === 'approval' || t.status === 'error') ? st.accent : '#243247';
+    const provTag = t.isSubagent ? `${t.providerName} · 서브` : t.providerName;
+    const cwdPart = t.cwd ? ` · ${t.cwd}` : '';
+    return `
+      <div class="task-card" style="border-color:${borderCol}">
+        <div class="task-top">
+          <div class="task-tags">
+            <span class="tag" style="background:${st.body};border:1px solid ${st.accent};color:${st.border}">${esc(t.statusLabel)}</span>
+            <span class="tag tag-prov" style="color:${esc(t.providerColor || '#93C5FD')}">${esc(provTag)}</span>
+          </div>
+          <span class="task-rel">${esc(t.updatedRel)}</span>
+        </div>
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">${esc(t.statusDetail)} · ${esc(t.model)}${esc(cwdPart)}</div>
+        <div class="task-summary">${esc(t.summary)}</div>
+      </div>`;
+  }).join('');
+}
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    if (!res.ok) return;
+    const payload = await res.json();
+    latestData = payload.snapshot;
+    if (payload.prefs) {
+      prefs = payload.prefs;
+      updateToggleButtons();
+    }
+    if (!latestData) return;
+    applyPetTheme(latestData.overallState);
+    document.getElementById('compactStateText').textContent = latestData.compactStateText || '휴식 중';
+    document.getElementById('compactQuotaText').textContent = latestData.compactQuotaText || '로컬 잔여량 확인 중';
+    document.getElementById('compactView').title = `${latestData.petSpeech}\n(클릭: 대시보드 열기 · 드래그: 이동 · 우클릭: 메뉴)`;
+    if (isExpanded) renderDashboard();
+  } catch {}
+}
+
+// Dragging + Click-to-Expand on Compact Pet & Header
+function bindDrag(el, isCompact) {
+  let active = false, moved = false, startX = 0, startY = 0, lastX = 0, lastY = 0;
+  el.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('button')) return;
+    active = true; moved = false;
+    startX = lastX = e.screenX;
+    startY = lastY = e.screenY;
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', e => {
+    if (!active) return;
+    const dxTotal = e.screenX - startX;
+    const dyTotal = e.screenY - startY;
+    if (!moved && (Math.abs(dxTotal) >= 5 || Math.abs(dyTotal) >= 5)) {
+      moved = true;
+    }
+    if (moved) {
+      const dx = e.screenX - lastX;
+      const dy = e.screenY - lastY;
+      lastX = e.screenX;
+      lastY = e.screenY;
+      postNative({ cmd: 'dragDelta', dx, dy });
+    }
+  });
+  el.addEventListener('pointerup', e => {
+    if (!active) return;
+    active = false;
+    try { el.releasePointerCapture(e.pointerId); } catch {}
+    if (moved) {
+      postNative({ cmd: 'dragEnd' });
+    } else if (isCompact) {
+      setExpanded(true);
+    }
+  });
+}
+
+bindDrag(document.getElementById('compactView'), true);
+bindDrag(document.getElementById('expandedHeader'), false);
+
+// Buttons & Tabs
+document.getElementById('btnCollapse').onclick = () => setExpanded(false);
+document.getElementById('btnRefresh').onclick = async () => {
+  await fetch('/api/refresh', { method: 'POST' });
+  await fetchStatus();
+};
+document.getElementById('btnTopmost').onclick = async () => {
+  prefs.topmost = !prefs.topmost;
+  updateToggleButtons();
+  postNative({ cmd: 'topmost', value: prefs.topmost });
+  await fetch('/api/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topmost: prefs.topmost }) });
+};
+document.getElementById('btnMute').onclick = async () => {
+  prefs.muted = !prefs.muted;
+  updateToggleButtons();
+  await fetch('/api/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ muted: prefs.muted }) });
+};
+document.getElementById('btnExternalDir').onclick = () => fetch('/api/open-external', { method: 'POST' });
+document.getElementById('btnQuit').onclick = async () => {
+  postNative({ cmd: 'quit' });
+  await fetch('/api/quit', { method: 'POST' }).catch(() => {});
+  window.close();
+};
+
+document.querySelectorAll('#filterTabs button').forEach(btn => {
+  btn.onclick = () => {
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('#filterTabs button').forEach(b => b.classList.toggle('active', b === btn));
+    renderDashboard();
+  };
+});
+
+// Context Menu
+const ctxMenu = document.getElementById('ctxMenu');
+document.getElementById('root').addEventListener('contextmenu', e => {
+  e.preventDefault();
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+  ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 180) + 'px';
+});
+document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+document.getElementById('ctxToggle').onclick = () => setExpanded(!isExpanded);
+document.getElementById('ctxRefresh').onclick = () => document.getElementById('btnRefresh').click();
+document.getElementById('ctxTopmost').onclick = () => document.getElementById('btnTopmost').click();
+document.getElementById('ctxMute').onclick = () => document.getElementById('btnMute').click();
+document.getElementById('ctxReset').onclick = () => postNative({ cmd: 'resetPos' });
+document.getElementById('ctxQuit').onclick = () => document.getElementById('btnQuit').click();
+
+// Expose hook for JXA status bar menu
+window.__petCommand = (cmd) => {
+  if (cmd === 'toggle') setExpanded(!isExpanded);
+  else if (cmd === 'refresh') document.getElementById('btnRefresh').click();
+  else if (cmd === 'topmost') document.getElementById('btnTopmost').click();
+  else if (cmd === 'resetPos') postNative({ cmd: 'resetPos' });
+};
+
+setExpanded(isExpanded);
+fetchStatus();
+setInterval(fetchStatus, 2000);
+</script>
+</body>
+</html>
