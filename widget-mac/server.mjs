@@ -8,8 +8,24 @@ import { collectAllStatus } from '../collector/collect-ai-status.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UI_HTML_PATH = path.join(__dirname, 'ui.html');
+const VERSION_FILE = path.join(__dirname, '..', 'version.json');
+
+function loadAppMeta() {
+  const def = { version: '1.1.0', channel: 'stable', isBeta: false };
+  try {
+    if (fs.existsSync(VERSION_FILE)) {
+      const obj = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8'));
+      const version = String(obj.version || def.version);
+      const channel = String(obj.channel || def.channel).toLowerCase();
+      return { version, channel, isBeta: channel === 'beta' };
+    }
+  } catch {}
+  return def;
+}
+
+const appMeta = loadAppMeta();
 const STATE_DIR = path.join(os.homedir(), '.ai-desk-pet');
-const STATE_FILE = path.join(STATE_DIR, 'widget-state.json');
+const STATE_FILE = path.join(STATE_DIR, appMeta.isBeta ? 'widget-state-beta.json' : 'widget-state.json');
 const EXTERNAL_DIR = path.join(STATE_DIR, 'external');
 const SERVER_INFO_FILE = path.join(STATE_DIR, 'mac-server.json');
 
@@ -20,12 +36,16 @@ const requestedPort = portIdx >= 0 && args[portIdx + 1] ? Number(args[portIdx + 
 const intIdx = args.indexOf('--interval');
 const intervalSec = Math.max(2, intIdx >= 0 && args[intIdx + 1] ? Number(args[intIdx + 1]) : 4);
 
+const VALID_CHARACTERS = new Set(['robot', 'speaki', 'dororong']);
+
 function loadPrefs() {
-  const def = { left: -1, top: -1, topmost: true, muted: false };
+  const def = { left: -1, top: -1, topmost: true, muted: false, character: 'robot' };
   try {
     if (fs.existsSync(STATE_FILE)) {
       const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-      return { ...def, ...raw };
+      const merged = { ...def, ...raw };
+      if (!VALID_CHARACTERS.has(merged.character)) merged.character = 'robot';
+      return merged;
     }
   } catch {}
   return def;
@@ -142,14 +162,14 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && urlPath === '/api/status') {
     if (!latestSnapshot) refreshSnapshot();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ snapshot: latestSnapshot, prefs }));
+    res.end(JSON.stringify({ snapshot: latestSnapshot, prefs, meta: appMeta }));
     return;
   }
 
   if (req.method === 'POST' && urlPath === '/api/refresh') {
     refreshSnapshot();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ snapshot: latestSnapshot, prefs }));
+    res.end(JSON.stringify({ snapshot: latestSnapshot, prefs, meta: appMeta }));
     return;
   }
 
@@ -159,6 +179,7 @@ const server = http.createServer(async (req, res) => {
     if (typeof body.muted === 'boolean') prefs.muted = body.muted;
     if (typeof body.left === 'number') prefs.left = body.left;
     if (typeof body.top === 'number') prefs.top = body.top;
+    if (typeof body.character === 'string' && VALID_CHARACTERS.has(body.character)) prefs.character = body.character;
     savePrefs(prefs);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: true, prefs }));

@@ -4,8 +4,10 @@ import path from 'node:path';
 import {
   STATUS_LABEL,
   formatRelSec,
+  formatRemainingUntil,
   formatTokens,
   kstTodayKey,
+  nextKstMidnightMs,
   oneLine,
   openReadOnlyDb,
   parseIsoMs,
@@ -221,6 +223,7 @@ export function collectAntigravity(nowMs, proc) {
     }
   }
 
+  const midnightMs = nextKstMidnightMs(nowMs);
   const quota = {
     available: false,
     remainingPct: null,
@@ -228,7 +231,8 @@ export function collectAntigravity(nowMs, proc) {
     primaryLabel: '오늘 누적 토큰',
     primaryValueText: totalTodayTokens > 0 ? formatTokens(totalTodayTokens) : '-',
     secondaryText: activeModel ? oneLine(activeModel, 22) : '',
-    resetText: '로컬 잔여% 미제공 · 토큰 집계',
+    resetText: `자정 토큰 집계 초기화 (${formatRemainingUntil(midnightMs, nowMs)})`,
+    resetDetail: 'Antigravity는 로컬에 서버 잔여%·쿼터 리셋 시각을 저장하지 않음 · 일일 토큰 집계는 자정 초기화',
     planType: '',
     limitReached: false,
     updatedMs: nowMs

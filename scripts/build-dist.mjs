@@ -6,6 +6,7 @@ import zlib from 'node:zlib';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT, 'dist');
+const VERSION_PATH = path.join(ROOT, 'version.json');
 
 // CRC32 lookup table
 const CRC_TABLE = new Uint32Array(256);
@@ -144,8 +145,45 @@ function makeEntry(absPath, zipPath, { normalizeLf = false } = {}) {
   };
 }
 
+function makeBufferEntry(buf, zipPath, mtime = new Date()) {
+  return {
+    zipPath,
+    data: buf,
+    mtime,
+    executable: false
+  };
+}
+
+function parseArgs(argv) {
+  let channel = '';
+  let version = '';
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--channel' && argv[i + 1]) {
+      channel = argv[++i].toLowerCase();
+    } else if (argv[i] === '--version' && argv[i + 1]) {
+      version = argv[++i];
+    }
+  }
+  return { channel, version };
+}
+
+function loadDefaultManifest() {
+  const def = { version: '1.1.0', channel: 'stable', releasedAt: new Date().toISOString().slice(0, 10) };
+  try {
+    if (fs.existsSync(VERSION_PATH)) {
+      const obj = JSON.parse(fs.readFileSync(VERSION_PATH, 'utf8'));
+      return { ...def, ...obj };
+    }
+  } catch {}
+  return def;
+}
+
 function main() {
-  fs.mkdirSync(DIST_DIR, { recursive: true });
+  const manifest = loadDefaultManifest();
+  const cli = parseArgs(process.argv.slice(2));
+  const channel = cli.channel === 'beta' ? 'beta' : (cli.channel === 'stable' ? 'stable' : (manifest.channel === 'beta' ? 'beta' : 'stable'));
+  const version = (cli.version || manifest.version || '1.1.0').replace(/^v/i, '');
+  const releasedAt = manifest.releasedAt || new Date().toISOString().slice(0, 10);
 
   // Verify Windows AiDeskPet.ps1 has UTF-8 BOM before packing
   const ps1Path = path.join(ROOT, 'widget', 'AiDeskPet.ps1');
@@ -154,33 +192,62 @@ function main() {
     throw new Error('widget/AiDeskPet.ps1 is missing UTF-8 BOM (EF BB BF).');
   }
 
+  const pkgVersionBuf = Buffer.from(
+    JSON.stringify({ version, channel, releasedAt }, null, 2) + '\n',
+    'utf8'
+  );
+
+  const subDir = channel === 'beta'
+    ? path.join(DIST_DIR, 'beta', `v${version}`)
+    : path.join(DIST_DIR, 'releases', `v${version}`);
+  fs.mkdirSync(subDir, { recursive: true });
+
   // 1. Windows package
-  const winPrefix = 'AI-Desk-Pet-Windows';
+  const winPrefix = `AI-Desk-Pet-v${version}-Windows`;
+  const winPetCmd = channel === 'beta' ? '01_AI_데스크펫_BETA_실행.cmd' : '01_AI_데스크펫_실행.cmd';
+  const winCliCmd = channel === 'beta' ? '02_터미널_모니터_BETA_실행.cmd' : '02_터미널_모니터_실행.cmd';
   const winEntries = [
-    makeEntry(path.join(ROOT, '01_AI_데스크펫_실행.cmd'), `${winPrefix}/01_AI_데스크펫_실행.cmd`),
-    makeEntry(path.join(ROOT, '02_터미널_모니터_실행.cmd'), `${winPrefix}/02_터미널_모니터_실행.cmd`),
+    makeEntry(path.join(ROOT, '01_AI_데스크펫_실행.cmd'), `${winPrefix}/${winPetCmd}`),
+    makeEntry(path.join(ROOT, '02_터미널_모니터_실행.cmd'), `${winPrefix}/${winCliCmd}`),
     makeEntry(path.join(ROOT, 'README.md'), `${winPrefix}/README.md`),
+    makeEntry(path.join(ROOT, 'CHANGELOG.md'), `${winPrefix}/CHANGELOG.md`),
+    makeBufferEntry(pkgVersionBuf, `${winPrefix}/version.json`),
     ...collectDirFiles(path.join(ROOT, 'collector'), `${winPrefix}/collector`),
     ...collectDirFiles(path.join(ROOT, 'widget'), `${winPrefix}/widget`)
   ];
-  const winZipPath = path.join(DIST_DIR, 'AI-Desk-Pet-Windows.zip');
-  fs.writeFileSync(winZipPath, buildZip(winEntries, { unixMode: false }));
+  const winZipName = `AI-Desk-Pet-v${version}-Windows.zip`;
+  const winZipPath = path.join(subDir, winZipName);
+  const winZipBuf = buildZip(winEntries, { unixMode: false });
+  fs.writeFileSync(winZipPath, winZipBuf);
 
   // 2. macOS package
-  const macPrefix = 'AI-Desk-Pet-Mac';
+  const macPrefix = `AI-Desk-Pet-v${version}-Mac`;
   const macEntries = [
     makeEntry(path.join(ROOT, 'mac', '01_AI_데스크펫_실행.command'), `${macPrefix}/01_AI_데스크펫_실행.command`, { normalizeLf: true }),
     makeEntry(path.join(ROOT, 'mac', '02_터미널_모니터_실행.command'), `${macPrefix}/02_터미널_모니터_실행.command`, { normalizeLf: true }),
     makeEntry(path.join(ROOT, 'mac', '03_브라우저_모니터_열기.command'), `${macPrefix}/03_브라우저_모니터_열기.command`, { normalizeLf: true }),
     makeEntry(path.join(ROOT, 'mac', 'README_Mac.md'), `${macPrefix}/README_Mac.md`, { normalizeLf: true }),
+    makeEntry(path.join(ROOT, 'CHANGELOG.md'), `${macPrefix}/CHANGELOG.md`, { normalizeLf: true }),
+    makeBufferEntry(pkgVersionBuf, `${macPrefix}/version.json`),
     ...collectDirFiles(path.join(ROOT, 'collector'), `${macPrefix}/collector`, { normalizeLf: true }),
     ...collectDirFiles(path.join(ROOT, 'widget-mac'), `${macPrefix}/widget-mac`, { normalizeLf: true })
   ];
-  const macZipPath = path.join(DIST_DIR, 'AI-Desk-Pet-Mac.zip');
-  fs.writeFileSync(macZipPath, buildZip(macEntries, { unixMode: true }));
+  const macZipName = `AI-Desk-Pet-v${version}-Mac.zip`;
+  const macZipPath = path.join(subDir, macZipName);
+  const macZipBuf = buildZip(macEntries, { unixMode: true });
+  fs.writeFileSync(macZipPath, macZipBuf);
 
-  console.log(`BUILT ${winZipPath} (${winEntries.length} files, ${fs.statSync(winZipPath).size} B)`);
-  console.log(`BUILT ${macZipPath} (${macEntries.length} files, ${fs.statSync(macZipPath).size} B)`);
+  console.log(`BUILT [${channel}] ${winZipPath} (${winEntries.length} files, ${winZipBuf.length} B)`);
+  console.log(`BUILT [${channel}] ${macZipPath} (${macEntries.length} files, ${macZipBuf.length} B)`);
+
+  if (channel === 'stable') {
+    const latestWin = path.join(DIST_DIR, 'AI-Desk-Pet-Windows.zip');
+    const latestMac = path.join(DIST_DIR, 'AI-Desk-Pet-Mac.zip');
+    fs.writeFileSync(latestWin, winZipBuf);
+    fs.writeFileSync(latestMac, macZipBuf);
+    console.log(`UPDATED LATEST ALIAS: ${latestWin}`);
+    console.log(`UPDATED LATEST ALIAS: ${latestMac}`);
+  }
 }
 
 main();

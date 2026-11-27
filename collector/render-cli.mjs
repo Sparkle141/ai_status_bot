@@ -1,5 +1,23 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { collectAllStatus } from './collect-ai-status.mjs';
 import { oneLine } from './utils.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function readVersionMeta() {
+  try {
+    const vp = path.join(__dirname, '..', 'version.json');
+    if (fs.existsSync(vp)) {
+      const obj = JSON.parse(fs.readFileSync(vp, 'utf8'));
+      const version = String(obj.version || '1.1.0');
+      const isBeta = String(obj.channel || 'stable').toLowerCase() === 'beta';
+      return { version, isBeta };
+    }
+  } catch {}
+  return { version: '1.1.0', isBeta: false };
+}
 
 const STATE_ICON = {
   approval: '!',
@@ -12,8 +30,10 @@ const STATE_ICON = {
 
 function render() {
   const data = collectAllStatus();
+  const ver = readVersionMeta();
+  const verTag = `v${ver.version}${ver.isBeta ? ' [BETA]' : ''}`;
   console.log('================================================================================');
-  console.log(`  AI 통합 실시간 모니터 (토큰 소모 없음)  |  ${data.generatedAtKst} KST`);
+  console.log(`  AI 통합 실시간 모니터 ${verTag} (토큰 소모 없음)  |  ${data.generatedAtKst} KST`);
   console.log('================================================================================');
   console.log(`  종합 상태: ${data.petSpeech}`);
   console.log(`  요약 카운트: 승인대기 ${data.counts.approval} | 오류 ${data.counts.error} | 작업중 ${data.counts.running} | 보류 ${data.counts.paused} | 완료 ${data.counts.done}`);

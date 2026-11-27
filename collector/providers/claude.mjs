@@ -5,10 +5,13 @@ import {
   STATUS_LABEL,
   formatBytes,
   formatRelSec,
+  formatRemainingUntil,
   oneLine,
   parseIsoMs,
   readJsonSafe,
   readTailUtf8,
+  toKstHour,
+  toKstMonthDay,
   toKstShort,
   walkFiles
 } from '../utils.mjs';
@@ -228,6 +231,122 @@ function readClaudeJsonlTail(filePath) {
   };
 }
 
+function estimateClaudeReset(orgSamples, metric, nowMs, latestTs) {
+  const cacheLabel = latestTs ? `캐시 ${toKstShort(latestTs)}` : '';
+  const list = (Array.isArray(orgSamples) ? orgSamples : [])
+    .filter(s => s && typeof s.t === 'number' && s.u && typeof s.u[metric] === 'number')
+    .sort((a, b) => a.t - b.t);
+
+  if (list.length === 0) {
+    return {
+      resetText: cacheLabel,
+      resetDetail: cacheLabel
+    };
+  }
+
+  if (metric === 'sd') {
+    let dropPrev = null;
+    let dropCurr = null;
+    for (let i = 1; i < list.length; i++) {
+      const prev = list[i - 1];
+      const curr = list[i];
+      if ((prev.u.sd >= 5 && curr.u.sd <= prev.u.sd - 5) || (prev.u.sd > 0 && curr.u.sd === 0)) {
+        dropPrev = prev;
+        dropCurr = curr;
+      }
+    }
+
+    if (dropPrev && dropCurr) {
+      const weekMs = 7 * 86400 * 1000;
+      let winStart = dropPrev.t;
+      let winEnd = dropCurr.t;
+      while (winEnd <= nowMs) {
+        winStart += weekMs;
+        winEnd += weekMs;
+      }
+      const mid = Math.round((winStart + winEnd) / 2);
+      const rem = formatRemainingUntil(mid, nowMs);
+      if (winEnd - winStart <= 60 * 60 * 1000) {
+        return {
+          resetText: `${rem} (${toKstShort(mid)} 추정)`,
+          resetDetail: `리셋 예정(추정): ${toKstShort(mid)} KST${cacheLabel ? ` · ${cacheLabel}` : ''}`
+        };
+      }
+      const mdStart = toKstMonthDay(winStart);
+      const mdEnd = toKstMonthDay(winEnd);
+      const rangeCompact = mdStart === mdEnd
+        ? `${toKstMonthDay(mid)} ${toKstHour(winStart)}~${toKstHour(winEnd)}시 추정`
+        : `${mdStart}~${mdEnd} 추정`;
+      return {
+        resetText: `${rem} (${rangeCompact})`,
+        resetDetail: `리셋 예정(추정): ${toKstShort(winStart)}~${toKstShort(winEnd)} KST${cacheLabel ? ` · ${cacheLabel}` : ''}`
+      };
+    }
+
+    const latestVal = list[list.length - 1].u.sd;
+    if (latestVal > 0) {
+      const firstPos = list.find(s => s.u.sd > 0);
+      if (firstPos) {
+        const upperMs = firstPos.t + 7 * 86400 * 1000;
+        if (upperMs > nowMs) {
+          return {
+            resetText: `~${toKstMonthDay(upperMs)} 이전 리셋 추정`,
+            resetDetail: `리셋 예정(추정): ~${toKstShort(upperMs)} 이전${cacheLabel ? ` · ${cacheLabel}` : ''}`
+          };
+        }
+        return {
+          resetText: '리셋 임박 (추정)',
+          resetDetail: `리셋 임박 (추정)${cacheLabel ? ` · ${cacheLabel}` : ''}`
+        };
+      }
+    }
+    return {
+      resetText: '미사용 · 리셋 대기',
+      resetDetail: `미사용 · 리셋 대기${cacheLabel ? ` · ${cacheLabel}` : ''}`
+    };
+  }
+
+  // metric === 'fh' (rolling 5-hour window starting on first active usage)
+  const fiveHoursMs = 5 * 3600 * 1000;
+  let cycleStartMs = 0;
+  for (let i = 0; i < list.length; i++) {
+    const curr = list[i];
+    if (curr.u.fh <= 0) continue;
+    if (i === 0) {
+      cycleStartMs = curr.t;
+      continue;
+    }
+    const prev = list[i - 1];
+    if (
+      prev.u.fh === 0
+      || (prev.u.fh >= 5 && curr.u.fh <= prev.u.fh - 5)
+      || (curr.t - prev.t > fiveHoursMs)
+    ) {
+      cycleStartMs = curr.t;
+    }
+  }
+
+  if (!cycleStartMs) {
+    return {
+      resetText: '미사용 · 리셋 대기',
+      resetDetail: `미사용 · 리셋 대기${cacheLabel ? ` · ${cacheLabel}` : ''}`
+    };
+  }
+
+  const estMs = cycleStartMs + fiveHoursMs;
+  if (estMs > nowMs) {
+    return {
+      resetText: `${formatRemainingUntil(estMs, nowMs)} (${toKstShort(estMs)} 추정)`,
+      resetDetail: `5시간 윈도우 리셋(추정): ${toKstShort(estMs)} KST${cacheLabel ? ` · ${cacheLabel}` : ''}`
+    };
+  }
+
+  return {
+    resetText: '리셋 완료/대기',
+    resetDetail: `5시간 윈도우 경과${cacheLabel ? ` · ${cacheLabel}` : ''}`
+  };
+}
+
 export function collectClaude(nowMs, proc) {
   const cutoff24h = nowMs - 24 * 3600 * 1000;
   const cutoff30m = nowMs - 30 * 60 * 1000;
@@ -304,7 +423,10 @@ export function collectClaude(nowMs, proc) {
     }
 
     if (!latestUsage || newest.t > latestUsage.t) {
-      latestUsage = { t: newest.t, org: targetOrg, fh, sd, fhTs, sdTs };
+      const orgSamples = targetOrg
+        ? sorted.filter(s => !s.org || s.org === targetOrg)
+        : sorted;
+      latestUsage = { t: newest.t, org: targetOrg, fh, sd, fhTs, sdTs, orgSamples };
     }
   }
 
@@ -697,6 +819,7 @@ export function collectClaude(nowMs, proc) {
     primaryValueText: '-',
     secondaryText: '',
     resetText: '',
+    resetDetail: '',
     planType: '',
     limitReached,
     updatedMs: latestUsage ? latestUsage.t : 0
@@ -709,17 +832,22 @@ export function collectClaude(nowMs, proc) {
     // Show the tighter (lower remaining) or primary 5h metric as bar, and put the other in secondaryText
     let priRem = fhRem;
     let priLabel = '5시간 잔여';
+    let priMetric = 'fh';
     let secText = sdRem !== null ? `7일 ${sdRem}%` : '';
 
     if (priRem === null && sdRem !== null) {
       priRem = sdRem;
       priLabel = '7일 잔여';
+      priMetric = 'sd';
       secText = '';
     } else if (fhRem !== null && sdRem !== null && sdRem < fhRem) {
       priRem = sdRem;
       priLabel = '7일 잔여';
+      priMetric = 'sd';
       secText = `5시간 ${fhRem}%`;
     }
+
+    const est = estimateClaudeReset(latestUsage.orgSamples, priMetric, nowMs, latestUsage.t);
 
     quota = {
       available: priRem !== null,
@@ -728,7 +856,8 @@ export function collectClaude(nowMs, proc) {
       primaryLabel: priLabel,
       primaryValueText: priRem !== null ? `${priRem}%` : '-',
       secondaryText: secText,
-      resetText: latestUsage.t ? `${toKstShort(latestUsage.t)} 캐시 기준` : '',
+      resetText: est.resetText,
+      resetDetail: est.resetDetail,
       planType: '',
       limitReached,
       updatedMs: latestUsage.t

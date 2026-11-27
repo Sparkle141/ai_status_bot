@@ -32,11 +32,26 @@
     gap: 6px;
     cursor: pointer;
   }
+  .pet-host {
+    width: 66px;
+    height: 66px;
+    flex-shrink: 0;
+  }
+  .expanded-pet-host {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
   .pet-wrap {
     position: relative;
     width: 66px;
     height: 66px;
-    flex-shrink: 0;
+    transform-origin: center center;
+  }
+  .expanded-pet-host .pet-wrap {
+    transform: scale(0.969);
+    transform-origin: top left;
   }
   .pet-halo {
     position: absolute;
@@ -109,7 +124,7 @@
     text-overflow: ellipsis;
   }
 
-  /* State animations */
+  /* State animations (applied whenever .state-* is on .pet-wrap) */
   @keyframes anim-idle {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(2px); }
@@ -140,13 +155,13 @@
     0%, 100% { opacity: 0.45; transform: scale(0.96); }
     50% { opacity: 1; transform: scale(1.04); }
   }
-  .state-idle .pet-svg { animation: anim-idle 2.6s ease-in-out infinite; }
-  .state-running .pet-svg { animation: anim-running 0.9s ease-in-out infinite; }
-  .state-approval .pet-svg { animation: anim-approval 0.55s ease-in-out infinite; }
-  .state-approval .pet-halo, .state-error .pet-halo { animation: halo-pulse 0.8s ease-in-out infinite; }
-  .state-error .pet-svg { animation: anim-error 0.35s linear infinite; }
-  .state-paused .pet-svg { animation: anim-paused 2.4s ease-in-out infinite; }
-  .state-done .pet-svg { animation: anim-done 1.1s ease-in-out infinite; }
+  .pet-wrap.state-idle .pet-svg { animation: anim-idle 2.6s ease-in-out infinite; }
+  .pet-wrap.state-running .pet-svg { animation: anim-running 0.9s ease-in-out infinite; }
+  .pet-wrap.state-approval .pet-svg { animation: anim-approval 0.55s ease-in-out infinite; }
+  .pet-wrap.state-approval .pet-halo, .pet-wrap.state-error .pet-halo { animation: halo-pulse 0.8s ease-in-out infinite; }
+  .pet-wrap.state-error .pet-svg { animation: anim-error 0.35s linear infinite; }
+  .pet-wrap.state-paused .pet-svg { animation: anim-paused 2.4s ease-in-out infinite; }
+  .pet-wrap.state-done .pet-svg { animation: anim-done 1.1s ease-in-out infinite; }
 
   /* EXPANDED DASHBOARD MODE */
   .expanded {
@@ -171,7 +186,7 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
   }
   .header-dot {
     width: 10px;
@@ -181,6 +196,15 @@
   }
   .header-title {
     font-size: 14px;
+    font-weight: 700;
+  }
+  .beta-pill {
+    background: #78350F;
+    border: 1px solid #F59E0B;
+    color: #FBBF24;
+    border-radius: 6px;
+    padding: 1px 5px;
+    font-size: 9px;
     font-weight: 700;
   }
   .header-badge {
@@ -212,15 +236,58 @@
     border-color: #60A5FA;
     color: #FFFFFF;
   }
+  .hero-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
   .speech-box {
+    flex: 1;
+    min-width: 0;
     background: #131F33;
     border: 1px solid #243247;
-    border-radius: 10px;
-    padding: 7px 10px;
+    border-radius: 12px;
+    padding: 8px 10px;
+  }
+  .speech-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .char-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #94A3B8;
+  }
+  .char-pills {
+    display: flex;
+    gap: 4px;
+  }
+  .char-btn {
+    background: #1E293B;
+    color: #94A3B8;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 9.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .char-btn:hover { background: #334155; }
+  .char-btn.active {
+    background: #2563EB;
+    border-color: #60A5FA;
+    color: #FFFFFF;
+  }
+  .speech-text {
     font-size: 11.5px;
     color: #E2E8F0;
-    margin-bottom: 10px;
     line-height: 1.4;
+    word-break: break-word;
   }
   .section-label {
     font-size: 10.5px;
@@ -231,15 +298,15 @@
   .providers-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
     margin-bottom: 10px;
   }
   .prov-card {
-    width: 128px;
+    width: 127px;
     background: #111C2E;
     border: 1px solid #243247;
     border-radius: 10px;
-    padding: 7px 9px;
+    padding: 7px 8px;
   }
   .prov-r1 {
     display: flex;
@@ -286,11 +353,23 @@
     border-radius: 2.5px;
   }
   .prov-sub {
-    font-size: 9.5px;
-    color: #64748B;
-    white-space: nowrap;
+    font-size: 9.2px;
+    color: #94A3B8;
+    line-height: 1.28;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+  }
+  .prov-sub2 {
+    font-size: 9px;
+    color: #64748B;
+    margin-top: 1px;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .tabs {
     display: flex;
@@ -299,7 +378,7 @@
     flex-wrap: wrap;
   }
   .tasks-scroll {
-    max-height: 270px;
+    max-height: 260px;
     overflow-y: auto;
     padding-right: 2px;
   }
@@ -385,7 +464,7 @@
     border: 1px solid #334155;
     border-radius: 10px;
     padding: 5px;
-    min-width: 170px;
+    min-width: 185px;
     z-index: 9999;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   }
@@ -397,45 +476,160 @@
     cursor: pointer;
   }
   .ctx-item:hover { background: #1E293B; }
+  .ctx-header {
+    padding: 4px 10px 2px;
+    font-size: 10px;
+    color: #64748B;
+    font-weight: 600;
+  }
   .ctx-sep { height: 1px; background: #243247; margin: 4px 0; }
 </style>
 </head>
 <body>
 <div class="root" id="root">
   <!-- COMPACT PET VIEW -->
-  <div class="compact state-idle" id="compactView" title="클릭: 대시보드 열기 · 드래그: 이동 · 우클릭: 메뉴">
-    <div class="pet-wrap">
-      <div class="pet-halo" id="petHalo"></div>
-      <svg class="pet-svg" viewBox="0 0 66 66">
-        <line x1="33" y1="17" x2="33" y2="9" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
-        <circle id="antennaOrb" cx="33" cy="8.5" r="4.5" fill="#94A3B8" stroke="#FFFFFF" stroke-width="1.2"/>
-        <rect x="7" y="29" width="6" height="13" rx="3" fill="#64748B"/>
-        <rect x="53" y="29" width="6" height="13" rx="3" fill="#64748B"/>
-        <rect id="petBody" x="11" y="17" width="44" height="39" rx="14" fill="#1E293B" stroke="#64748B" stroke-width="2"/>
-        <rect x="16" y="23" width="34" height="22" rx="8" fill="#0B1120"/>
-        <g id="eyesNormal" style="display:none">
-          <ellipse id="eyeL" cx="25" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
-          <ellipse id="eyeR" cx="41" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
-        </g>
-        <g id="eyesHappy" style="display:none">
-          <path d="M 21,34 Q 25,28 29,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M 37,34 Q 41,28 45,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
-        </g>
-        <g id="eyesSleep">
-          <line x1="21" y1="33" x2="28" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
-          <line x1="38" y1="33" x2="45" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
-        </g>
-        <g id="eyesError" style="display:none">
-          <path d="M 22,29 L 28,35 M 28,29 L 22,35 M 38,29 L 44,35 M 44,29 L 38,35" stroke="#F87171" stroke-width="2.2" stroke-linecap="round"/>
-        </g>
-        <ellipse cx="20.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
-        <ellipse cx="45.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
-        <path id="mouthPath" d="M 30,41 L 36,41" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round"/>
-        <rect x="20" y="55" width="8" height="4" rx="2" fill="#475569"/>
-        <rect x="38" y="55" width="8" height="4" rx="2" fill="#475569"/>
-      </svg>
-      <div class="pet-badge" id="petBadge">z</div>
+  <div class="compact" id="compactView" title="클릭: 대시보드 열기 · 드래그: 이동 · 우클릭: 메뉴">
+    <div class="pet-host" id="compactPetHost">
+      <div class="pet-wrap state-idle" id="petWrap">
+        <div class="pet-halo" id="petHalo"></div>
+        <svg class="pet-svg" viewBox="0 0 66 66">
+          <!-- 1. ROBOT -->
+          <g id="charRobot">
+            <line x1="33" y1="17" x2="33" y2="9" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+            <circle id="antennaOrb" cx="33" cy="8.5" r="4.5" fill="#94A3B8" stroke="#FFFFFF" stroke-width="1.2"/>
+            <rect x="7" y="29" width="6" height="13" rx="3" fill="#64748B"/>
+            <rect x="53" y="29" width="6" height="13" rx="3" fill="#64748B"/>
+            <rect id="petBody" x="11" y="17" width="44" height="39" rx="14" fill="#1E293B" stroke="#64748B" stroke-width="2"/>
+            <rect x="16" y="23" width="34" height="22" rx="8" fill="#0B1120"/>
+            <g id="eyesNormal" style="display:none">
+              <ellipse id="eyeL" cx="25" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
+              <ellipse id="eyeR" cx="41" cy="32.5" rx="3" ry="3.5" fill="#34D399"/>
+            </g>
+            <g id="eyesHappy" style="display:none">
+              <path d="M 21,34 Q 25,28 29,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M 37,34 Q 41,28 45,34" fill="none" stroke="#4ADE80" stroke-width="2.2" stroke-linecap="round"/>
+            </g>
+            <g id="eyesSleep">
+              <line x1="21" y1="33" x2="28" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+              <line x1="38" y1="33" x2="45" y2="33" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+            </g>
+            <g id="eyesError" style="display:none">
+              <path d="M 22,29 L 28,35 M 28,29 L 22,35 M 38,29 L 44,35 M 44,29 L 38,35" fill="none" stroke="#F87171" stroke-width="2.2" stroke-linecap="round"/>
+            </g>
+            <ellipse cx="20.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
+            <ellipse cx="45.5" cy="39.5" rx="2.5" ry="1.5" fill="rgba(244,114,182,0.33)"/>
+            <path id="mouthPath" d="M 30,41 L 36,41" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round"/>
+            <rect x="20" y="55" width="8" height="4" rx="2" fill="#475569"/>
+            <rect x="38" y="55" width="8" height="4" rx="2" fill="#475569"/>
+          </g>
+
+          <!-- 2. SPEAKI (스핔이) -->
+          <g id="charSpeaki" style="display:none">
+            <path d="M 18,41 Q 15,56 21,59 Q 26,55 30,59 Q 33,61 36,59 Q 40,55 45,59 Q 51,56 48,41 Z" fill="#F8FAFC" stroke="#475569" stroke-width="1.5" stroke-linejoin="round"/>
+            <ellipse cx="16.2" cy="46.5" rx="3.2" ry="2.5" fill="#FFF7ED" stroke="#78350F" stroke-width="1.2"/>
+            <ellipse cx="49.8" cy="46.5" rx="3.2" ry="2.5" fill="#FFF7ED" stroke="#78350F" stroke-width="1.2"/>
+            <ellipse cx="33" cy="29.5" rx="22" ry="16.5" fill="#FACC15" stroke="#A16207" stroke-width="1.3"/>
+            <path d="M 16,29 C 16,18 50,18 50,29 C 53,37 52,45 43,47.5 C 37,49.5 29,49.5 23,47.5 C 14,45 13,37 16,29 Z" fill="#FFF7ED" stroke="#78350F" stroke-width="1.5"/>
+            <path d="M 13,25 Q 10,36 14,44 Q 17,39 16.5,29 Z" fill="#FDE047" stroke="#A16207" stroke-width="1.2"/>
+            <path d="M 53,25 Q 56,36 52,44 Q 49,39 49.5,29 Z" fill="#FDE047" stroke="#A16207" stroke-width="1.2"/>
+            <path d="M 16,27 Q 19,15 33,15 Q 47,15 50,27 Q 44,21 39,25 Q 35,19 33,24 Q 29,19 26,25 Q 21,21 16,27 Z" fill="#FDE047" stroke="#A16207" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M 32,8 Q 33.5,3.5 36.5,4.5" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="37" cy="5.9" rx="2.5" ry="1.4" fill="#4ADE80"/>
+            <ellipse cx="33" cy="12.5" rx="8.5" ry="5.5" fill="#FB923C" stroke="#C2410C" stroke-width="1.4"/>
+            <path d="M 29.5,8 Q 28.5,12.5 29.5,17 M 36.5,8 Q 37.5,12.5 36.5,17" fill="none" stroke="#EA580C" stroke-width="1.1"/>
+            <ellipse cx="20" cy="38.6" rx="3.5" ry="2.1" fill="rgba(253,164,175,0.55)"/>
+            <ellipse cx="46" cy="38.6" rx="3.5" ry="2.1" fill="rgba(253,164,175,0.55)"/>
+            <g id="speakiNormal" style="display:none">
+              <ellipse cx="25" cy="32" rx="3" ry="3.5" fill="#0D9488"/>
+              <ellipse cx="41" cy="32" rx="3" ry="3.5" fill="#0D9488"/>
+              <ellipse cx="25" cy="31.1" rx="1.1" ry="1.3" fill="#FFFFFF"/>
+              <ellipse cx="41" cy="31.1" rx="1.1" ry="1.3" fill="#FFFFFF"/>
+              <path d="M 28.5,39.5 Q 30.8,42.5 33,39.5 Q 35.2,42.5 37.5,39.5" fill="none" stroke="#78350F" stroke-width="1.6" stroke-linecap="round"/>
+            </g>
+            <g id="speakiApproval" style="display:none">
+              <ellipse cx="24.9" cy="31.6" rx="3.4" ry="3.6" fill="#0F766E"/>
+              <ellipse cx="41.1" cy="31.6" rx="3.4" ry="3.6" fill="#0F766E"/>
+              <ellipse cx="24.5" cy="30.6" rx="1.3" ry="1.4" fill="#FFFFFF"/>
+              <ellipse cx="40.7" cy="30.6" rx="1.3" ry="1.4" fill="#FFFFFF"/>
+              <path d="M 22,35.5 Q 24.5,40.5 27,35.5 Z M 39,35.5 Q 41.5,40.5 44,35.5 Z" fill="#38BDF8"/>
+              <ellipse cx="33" cy="41.5" rx="3.5" ry="2.5" fill="#FB7185" stroke="#881337" stroke-width="1.3"/>
+            </g>
+            <g id="speakiError" style="display:none">
+              <path d="M 21.5,29 L 27.5,32 L 21.5,35 M 44.5,29 L 38.5,32 L 44.5,35" fill="none" stroke="#78350F" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M 48.5,24.5 Q 51.5,28.5 48.5,30.5 Q 45.5,28.5 48.5,24.5 Z" fill="#38BDF8"/>
+              <path d="M 28,40.5 Q 30.5,38.5 33,40.5 Q 35.5,42.5 38,40.5" fill="none" stroke="#78350F" stroke-width="1.7" stroke-linecap="round"/>
+            </g>
+            <g id="speakiDone" style="display:none">
+              <path d="M 21.5,33.5 Q 25,27.5 28.5,33.5 M 37.5,33.5 Q 41,27.5 44.5,33.5" fill="none" stroke="#78350F" stroke-width="2.1" stroke-linecap="round"/>
+              <path d="M 28.5,38.8 Q 33,44.5 37.5,38.8 Z" fill="#FB7185" stroke="#881337" stroke-width="1.2"/>
+            </g>
+            <g id="speakiPaused" style="display:none">
+              <line x1="21.5" y1="32" x2="28.5" y2="32" stroke="#78350F" stroke-width="2.2" stroke-linecap="round"/>
+              <line x1="37.5" y1="32" x2="44.5" y2="32" stroke="#78350F" stroke-width="2.2" stroke-linecap="round"/>
+              <line x1="30" y1="40.5" x2="36" y2="40.5" stroke="#78350F" stroke-width="1.7" stroke-linecap="round"/>
+            </g>
+            <g id="speakiIdle">
+              <path d="M 21.5,31.5 Q 25,35.5 28.5,31.5 M 37.5,31.5 Q 41,35.5 44.5,31.5" fill="none" stroke="#78350F" stroke-width="2" stroke-linecap="round"/>
+              <ellipse cx="33" cy="40.7" rx="1.5" ry="1.2" fill="#FB7185"/>
+            </g>
+          </g>
+
+          <!-- 3. DORORONG (도로롱) -->
+          <g id="charDoro" style="display:none">
+            <path d="M 20,42 C 17,48 16,56 22,57.5 L 44,57.5 C 50,56 49,48 46,42 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M 21,53 Q 33,56 45,53" fill="none" stroke="#FBBF24" stroke-width="1.6" stroke-linecap="round"/>
+            <ellipse cx="21.2" cy="56" rx="3.7" ry="2.5" fill="#FFF5F5" stroke="#94A3B8" stroke-width="1.3"/>
+            <ellipse cx="44.8" cy="56" rx="3.7" ry="2.5" fill="#FFF5F5" stroke="#94A3B8" stroke-width="1.3"/>
+            <path d="M 33,46 L 26,43 L 27,49 Z M 33,46 L 40,43 L 39,49 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.1"/>
+            <ellipse cx="33" cy="45.9" rx="2" ry="1.7" fill="#FBBF24"/>
+            <path d="M 15,24 C 6,24 5,39 14,42 C 17,40 17,30 15,24 Z" fill="#F472B6" stroke="#BE185D" stroke-width="1.3"/>
+            <path d="M 51,24 C 60,24 61,39 52,42 C 49,40 49,30 51,24 Z" fill="#F472B6" stroke="#BE185D" stroke-width="1.3"/>
+            <ellipse cx="33" cy="27" rx="20" ry="16" fill="#F9A8D4" stroke="#BE185D" stroke-width="1.4"/>
+            <path d="M 32,11.5 Q 35,4.5 40,7.5 Q 36,9.5 34.5,11.5" fill="#F9A8D4" stroke="#BE185D" stroke-width="1.3"/>
+            <ellipse cx="33" cy="31.5" rx="18" ry="14" fill="#FFF5F5" stroke="#9D174D" stroke-width="1.4"/>
+            <path d="M 15,26 Q 19,14 33,14 Q 47,14 51,26 Q 45,20 40,24 Q 36,18 33,23 Q 29,18 25,24 Q 20,20 15,26 Z" fill="#F9A8D4" stroke="#BE185D" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M 15,18.5 L 11,16 L 12,21.5 Z M 15,18.5 L 19,16 L 18,21.5 Z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1"/>
+            <ellipse cx="21" cy="36.2" rx="3" ry="1.7" fill="rgba(244,114,182,0.53)"/>
+            <ellipse cx="45" cy="36.2" rx="3" ry="1.7" fill="rgba(244,114,182,0.53)"/>
+            <g id="doroNormal" style="display:none">
+              <ellipse cx="24.8" cy="30.3" rx="2.8" ry="3.3" fill="#7C3AED"/>
+              <ellipse cx="41.2" cy="30.3" rx="2.8" ry="3.3" fill="#7C3AED"/>
+              <ellipse cx="24.8" cy="31.1" rx="1.6" ry="1.1" fill="#C4B5FD"/>
+              <ellipse cx="41.2" cy="31.1" rx="1.6" ry="1.1" fill="#C4B5FD"/>
+              <ellipse cx="24.6" cy="29" rx="1" ry="1" fill="#FFFFFF"/>
+              <ellipse cx="41" cy="29" rx="1" ry="1" fill="#FFFFFF"/>
+              <path d="M 28.5,37.5 Q 30.8,40.5 33,37.5 Q 35.2,40.5 37.5,37.5" fill="none" stroke="#9D174D" stroke-width="1.7" stroke-linecap="round"/>
+            </g>
+            <g id="doroApproval" style="display:none">
+              <ellipse cx="24.7" cy="30.1" rx="3.2" ry="3.6" fill="#6D28D9"/>
+              <ellipse cx="41.3" cy="30.1" rx="3.2" ry="3.6" fill="#6D28D9"/>
+              <ellipse cx="24.7" cy="29.8" rx="1" ry="1" fill="#FFFFFF"/>
+              <ellipse cx="41.3" cy="29.8" rx="1" ry="1" fill="#FFFFFF"/>
+              <ellipse cx="33" cy="38.5" rx="2" ry="2" fill="#FDA4AF" stroke="#9D174D" stroke-width="1.3"/>
+            </g>
+            <g id="doroError" style="display:none">
+              <path d="M 22,27.5 L 27.5,33 M 27.5,27.5 L 22,33 M 38.5,27.5 L 44,33 M 44,27.5 L 38.5,33" fill="none" stroke="#BE185D" stroke-width="2.1" stroke-linecap="round"/>
+              <path d="M 28,39 Q 30.5,37 33,39 Q 35.5,41 38,39" fill="none" stroke="#9D174D" stroke-width="1.7" stroke-linecap="round"/>
+            </g>
+            <g id="doroDone" style="display:none">
+              <path d="M 21.5,32 Q 25,26 28.5,32 M 37.5,32 Q 41,26 44.5,32" fill="none" stroke="#9D174D" stroke-width="2.1" stroke-linecap="round"/>
+              <path d="M 28.5,37.5 Q 30.8,40.8 33,37.5 Q 35.2,40.8 37.5,37.5" fill="none" stroke="#9D174D" stroke-width="1.8" stroke-linecap="round"/>
+            </g>
+            <g id="doroPaused" style="display:none">
+              <ellipse cx="25.4" cy="30.9" rx="1.9" ry="1.9" fill="#4C1D95"/>
+              <ellipse cx="41.4" cy="30.9" rx="1.9" ry="1.9" fill="#4C1D95"/>
+              <path d="M 29.5,38 Q 31.3,39.8 33,38 Q 34.7,39.8 36.5,38" fill="none" stroke="#9D174D" stroke-width="1.5" stroke-linecap="round"/>
+            </g>
+            <g id="doroIdle">
+              <path d="M 21.5,30.5 Q 25,33.5 28.5,30.5 M 37.5,30.5 Q 41,33.5 44.5,30.5" fill="none" stroke="#9D174D" stroke-width="1.9" stroke-linecap="round"/>
+              <path d="M 30,38 Q 33,39.5 36,38" fill="none" stroke="#9D174D" stroke-width="1.5" stroke-linecap="round"/>
+            </g>
+          </g>
+        </svg>
+        <div class="pet-badge" id="petBadge">z</div>
+      </div>
     </div>
+
     <div class="compact-pill" id="compactPill">
       <div class="pill-top">
         <span class="pill-dot"></span>
@@ -452,6 +646,7 @@
       <div class="header-left">
         <span class="header-dot"></span>
         <span class="header-title">AI Desk Pet</span>
+        <span class="beta-pill" id="betaPill" style="display:none">BETA</span>
         <span class="header-badge" id="headerStateText">휴식 중</span>
       </div>
       <div class="header-actions">
@@ -462,7 +657,21 @@
       </div>
     </div>
 
-    <div class="speech-box" id="petSpeechText">데이터를 불러오는 중입니다...</div>
+    <div class="hero-row">
+      <div class="expanded-pet-host" id="expandedPetHost" title="클릭하여 캐릭터 변경 (로봇 → 호바기 → 도롱이)"></div>
+      <div class="speech-box">
+        <div class="speech-top">
+          <span class="char-name" id="petCharNameText">로봇</span>
+          <div class="char-pills">
+            <button class="char-btn active" data-char="robot">로봇</button>
+            <button class="char-btn" data-char="speaki">호바기</button>
+            <button class="char-btn" data-char="dororong">도롱이</button>
+          </div>
+        </div>
+        <div class="speech-text" id="petSpeechText">데이터를 불러오는 중입니다...</div>
+      </div>
+    </div>
+
     <div class="section-label">프로바이더 · 잔여 사용량</div>
     <div class="providers-grid" id="providersPanel"></div>
 
@@ -489,6 +698,11 @@
   <div class="ctx-item" id="ctxToggle">대시보드 펼치기 / 접기</div>
   <div class="ctx-item" id="ctxRefresh">지금 새로고침</div>
   <div class="ctx-sep"></div>
+  <div class="ctx-header">캐릭터 선택</div>
+  <div class="ctx-item ctx-char" data-char="robot">✓ 로봇</div>
+  <div class="ctx-item ctx-char" data-char="speaki">호바기</div>
+  <div class="ctx-item ctx-char" data-char="dororong">도롱이</div>
+  <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctxTopmost">항상 위(Topmost) 전환</div>
   <div class="ctx-item" id="ctxMute">알림 토스트 끄기/켜기</div>
   <div class="ctx-item" id="ctxReset">기본 위치로 초기화</div>
@@ -506,11 +720,19 @@ const THEMES = {
   idle:     { accent: '#94A3B8', halo: 'rgba(148,163,184,0.18)', body: '#1E293B', border: '#64748B', badge: 'z', label: '휴식 중' }
 };
 
+const CHAR_META = {
+  robot:    { id: 'robot', label: '로봇' },
+  speaki:   { id: 'speaki', label: '호바기' },
+  dororong: { id: 'dororong', label: '도롱이' }
+};
+
 const isNativeMac = Boolean(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pet);
 let latestData = null;
 let activeFilter = 'all';
 let isExpanded = !isNativeMac; // Browser preview opens expanded; native Mac pet starts compact
-let prefs = { topmost: true, muted: false };
+let prefs = { topmost: true, muted: false, character: 'robot' };
+let appMeta = { version: '1.1.0', channel: 'stable', isBeta: false };
+let currentState = 'idle';
 
 function postNative(payload) {
   if (isNativeMac) {
@@ -523,7 +745,8 @@ function esc(s) {
 }
 
 function applyPetTheme(state) {
-  const t = THEMES[state] || THEMES.idle;
+  currentState = THEMES[state] ? state : 'idle';
+  const t = THEMES[currentState];
   const r = document.documentElement.style;
   r.setProperty('--accent', t.accent);
   r.setProperty('--halo', t.halo);
@@ -536,25 +759,26 @@ function applyPetTheme(state) {
   document.getElementById('petBadge').textContent = t.badge;
   document.getElementById('headerStateText').textContent = t.label;
 
-  const cv = document.getElementById('compactView');
-  cv.className = 'compact state-' + (THEMES[state] ? state : 'idle');
+  const pw = document.getElementById('petWrap');
+  pw.className = 'pet-wrap state-' + currentState;
 
+  // Robot expressions
   document.getElementById('eyesNormal').style.display = 'none';
   document.getElementById('eyesHappy').style.display = 'none';
   document.getElementById('eyesSleep').style.display = 'none';
   document.getElementById('eyesError').style.display = 'none';
   const mouth = document.getElementById('mouthPath');
 
-  if (state === 'error') {
+  if (currentState === 'error') {
     document.getElementById('eyesError').style.display = '';
     mouth.setAttribute('d', 'M 28,42 Q 33,38 38,42');
-  } else if (state === 'done') {
+  } else if (currentState === 'done') {
     document.getElementById('eyesHappy').style.display = '';
     mouth.setAttribute('d', 'M 28,39 Q 33,44 38,39');
-  } else if (state === 'idle') {
+  } else if (currentState === 'idle') {
     document.getElementById('eyesSleep').style.display = '';
     mouth.setAttribute('d', 'M 30,41 L 36,41');
-  } else if (state === 'approval') {
+  } else if (currentState === 'approval') {
     document.getElementById('eyesNormal').style.display = '';
     document.getElementById('eyeL').setAttribute('fill', t.border);
     document.getElementById('eyeR').setAttribute('fill', t.border);
@@ -565,10 +789,71 @@ function applyPetTheme(state) {
     document.getElementById('eyeR').setAttribute('fill', t.border);
     mouth.setAttribute('d', 'M 29,40 Q 33,43 37,40');
   }
+
+  // Speaki expressions
+  const speakiMap = {
+    running: 'speakiNormal',
+    approval: 'speakiApproval',
+    error: 'speakiError',
+    done: 'speakiDone',
+    paused: 'speakiPaused',
+    idle: 'speakiIdle'
+  };
+  for (const id of Object.values(speakiMap)) {
+    document.getElementById(id).style.display = 'none';
+  }
+  document.getElementById(speakiMap[currentState] || 'speakiIdle').style.display = '';
+
+  // Dororong expressions
+  const doroMap = {
+    running: 'doroNormal',
+    approval: 'doroApproval',
+    error: 'doroError',
+    done: 'doroDone',
+    paused: 'doroPaused',
+    idle: 'doroIdle'
+  };
+  for (const id of Object.values(doroMap)) {
+    document.getElementById(id).style.display = 'none';
+  }
+  document.getElementById(doroMap[currentState] || 'doroIdle').style.display = '';
+}
+
+function applyCharacter(charId, save = false) {
+  const id = CHAR_META[charId] ? charId : 'robot';
+  prefs.character = id;
+  document.getElementById('charRobot').style.display = id === 'robot' ? '' : 'none';
+  document.getElementById('charSpeaki').style.display = id === 'speaki' ? '' : 'none';
+  document.getElementById('charDoro').style.display = id === 'dororong' ? '' : 'none';
+  document.getElementById('petCharNameText').textContent = CHAR_META[id].label;
+
+  document.querySelectorAll('.char-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.char === id);
+  });
+  document.querySelectorAll('.ctx-char').forEach(item => {
+    const k = item.dataset.char;
+    item.textContent = (k === id ? '✓ ' : '') + CHAR_META[k].label;
+  });
+
+  if (save) {
+    fetch('/api/prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ character: id })
+    }).catch(() => {});
+  }
 }
 
 function setExpanded(expand) {
   isExpanded = expand;
+  const petWrap = document.getElementById('petWrap');
+  const compactHost = document.getElementById('compactPetHost');
+  const expandedHost = document.getElementById('expandedPetHost');
+  if (expand) {
+    expandedHost.appendChild(petWrap);
+  } else {
+    compactHost.appendChild(petWrap);
+  }
   document.getElementById('compactView').style.display = expand ? 'none' : 'flex';
   document.getElementById('expandedView').style.display = expand ? 'block' : 'none';
   postNative({ cmd: expand ? 'expand' : 'collapse' });
@@ -593,7 +878,7 @@ function renderDashboard() {
   document.querySelector('[data-filter="done"]').textContent = `완료 (${c.done || 0})`;
 
   document.getElementById('petSpeechText').textContent = latestData.petSpeech || '';
-  document.getElementById('footerInfoText').textContent = `갱신: ${(latestData.generatedAtKst || '').slice(11, 19)} KST · 4초 주기 · 무토큰`;
+  document.getElementById('footerInfoText').textContent = `v${appMeta.version} · 갱신: ${(latestData.generatedAtKst || '').slice(11, 19)} KST · 4초 주기 · 무토큰`;
 
   const provEl = document.getElementById('providersPanel');
   provEl.innerHTML = (latestData.providers || []).map(p => {
@@ -605,9 +890,24 @@ function renderDashboard() {
     const rem = hasPct ? Math.max(0, Math.min(100, q.remainingPct)) : 37;
     const valColor = hasPct ? (rem >= 50 ? '#34D399' : (rem >= 20 ? '#FBBF24' : '#F87171')) : '#93C5FD';
     const barColor = hasPct ? (rem >= 50 ? '#10B981' : (rem >= 20 ? '#F59E0B' : '#EF4444')) : '#3B82F6';
-    const sub = q.secondaryText || q.resetText || p.processDetail || '';
+    const tipReset = q.resetDetail || q.resetText || '';
+
+    let subHtml = '';
+    if (q.available) {
+      const r3 = (q.secondaryText && q.resetText)
+        ? `${q.secondaryText} · ${q.resetText}`
+        : (q.resetText || q.secondaryText || p.processDetail || '');
+      subHtml = `<div class="prov-sub">${esc(r3)}</div>`;
+    } else {
+      const r3 = q.secondaryText || p.processDetail || '';
+      subHtml = `<div class="prov-sub">${esc(r3)}</div>`;
+      if (q.resetText) {
+        subHtml += `<div class="prov-sub2">${esc(q.resetText)}</div>`;
+      }
+    }
+
     return `
-      <div class="prov-card" title="${esc(p.processDetail + '\n' + (q.resetText || '') + '\n' + (p.note || ''))}">
+      <div class="prov-card" title="${esc(p.processDetail + '\n' + tipReset + '\n' + (p.note || ''))}">
         <div class="prov-r1">
           <div class="prov-name-wrap"><span class="prov-dot" style="background:${dotColor}"></span><span>${esc(p.name)}</span></div>
           <span class="prov-proc" style="color:${procColor}">${procTxt}</span>
@@ -617,7 +917,7 @@ function renderDashboard() {
           <span class="prov-qval" style="color:${valColor}">${esc(q.primaryValueText || '-')}</span>
         </div>
         <div class="bar-bg"><div class="bar-fill" style="width:${hasPct ? Math.max(3, rem) : 37}%;background:${barColor}"></div></div>
-        <div class="prov-sub">${esc(sub)}</div>
+        ${subHtml}
       </div>`;
   }).join('');
 
@@ -661,9 +961,15 @@ async function fetchStatus() {
     if (!res.ok) return;
     const payload = await res.json();
     latestData = payload.snapshot;
+    if (payload.meta) {
+      appMeta = { ...appMeta, ...payload.meta };
+      document.getElementById('betaPill').style.display = appMeta.isBeta ? '' : 'none';
+      document.title = appMeta.isBeta ? `AI Desk Pet v${appMeta.version} (Beta)` : `AI Desk Pet v${appMeta.version}`;
+    }
     if (payload.prefs) {
-      prefs = payload.prefs;
+      prefs = { ...prefs, ...payload.prefs };
       updateToggleButtons();
+      applyCharacter(prefs.character, false);
     }
     if (!latestData) return;
     applyPetTheme(latestData.overallState);
@@ -715,6 +1021,19 @@ function bindDrag(el, isCompact) {
 bindDrag(document.getElementById('compactView'), true);
 bindDrag(document.getElementById('expandedHeader'), false);
 
+// Character switching
+document.getElementById('expandedPetHost').onclick = () => {
+  const order = ['robot', 'speaki', 'dororong'];
+  const next = order[(order.indexOf(prefs.character) + 1) % order.length];
+  applyCharacter(next, true);
+};
+document.querySelectorAll('.char-btn').forEach(btn => {
+  btn.onclick = () => applyCharacter(btn.dataset.char, true);
+});
+document.querySelectorAll('.ctx-char').forEach(item => {
+  item.onclick = () => applyCharacter(item.dataset.char, true);
+});
+
 // Buttons & Tabs
 document.getElementById('btnCollapse').onclick = () => setExpanded(false);
 document.getElementById('btnRefresh').onclick = async () => {
@@ -752,8 +1071,8 @@ const ctxMenu = document.getElementById('ctxMenu');
 document.getElementById('root').addEventListener('contextmenu', e => {
   e.preventDefault();
   ctxMenu.style.display = 'block';
-  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
-  ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 180) + 'px';
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 195) + 'px';
+  ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 260) + 'px';
 });
 document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
 document.getElementById('ctxToggle').onclick = () => setExpanded(!isExpanded);
@@ -771,6 +1090,7 @@ window.__petCommand = (cmd) => {
   else if (cmd === 'resetPos') postNative({ cmd: 'resetPos' });
 };
 
+applyCharacter(prefs.character, false);
 setExpanded(isExpanded);
 fetchStatus();
 setInterval(fetchStatus, 2000);

@@ -12,7 +12,7 @@ function run(argv) {
   var COMPACT_W = 345;
   var COMPACT_H = 92;
   var EXPANDED_W = 450;
-  var EXPANDED_H = 610;
+  var EXPANDED_H = 645;
 
   var screenFrame = $.NSScreen.mainScreen.visibleFrame;
   var initX = screenFrame.origin.x + screenFrame.size.width - COMPACT_W - 18;

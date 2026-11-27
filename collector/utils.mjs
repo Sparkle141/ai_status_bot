@@ -45,6 +45,22 @@ export function toKstShort(ms) {
   return toKstDate(ms).toISOString().replace('T', ' ').slice(5, 16);
 }
 
+export function toKstMonthDay(ms) {
+  if (!ms || Number.isNaN(Number(ms))) return '-';
+  return toKstDate(ms).toISOString().slice(5, 10);
+}
+
+export function toKstHour(ms) {
+  if (!ms || Number.isNaN(Number(ms))) return '-';
+  return toKstDate(ms).toISOString().slice(11, 13);
+}
+
+export function nextKstMidnightMs(nowMs = Date.now()) {
+  const kst = toKstDate(nowMs);
+  const nextUtc = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate() + 1, 0, 0, 0, 0);
+  return nextUtc - 9 * 3600 * 1000;
+}
+
 export function kstTodayKey(nowMs = Date.now()) {
   return toKstDate(nowMs).toISOString().slice(0, 10);
 }
